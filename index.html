@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Valorant Agent Picker</title>
+    <script
+      src="https://unpkg.com/react@18/umd/react.development.js"
+      crossorigin
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+      crossorigin
+    ></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Outfit", sans-serif;
+        background-color: #0f1923;
+        color: #ece8e1;
+      }
+      .valorant-red {
+        color: #ff4655;
+      }
+      .bg-valorant-red {
+        background-color: #ff4655;
+      }
+      .bg-valorant-dark {
+        background-color: #1a252f;
+      }
+      .border-valorant-red {
+        border-color: #ff4655;
+      }
+
+      .agent-card-glow:hover {
+        box-shadow: 0 0 15px rgba(255, 70, 85, 0.4);
+        border-color: #ff4655;
+      }
+
+      .glass-panel {
+        background: rgba(26, 37, 47, 0.8);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .scroll-custom::-webkit-scrollbar {
+        width: 4px;
+      }
+      .scroll-custom::-webkit-scrollbar-track {
+        background: #0f1923;
+      }
+      .scroll-custom::-webkit-scrollbar-thumb {
+        background: #ff4655;
+        border-radius: 10px;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.3s ease-out forwards;
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              vdark: "#0f1923",
+              vgrey: "#1a252f",
+              vred: "#ff4655",
+              vwhite: "#ece8e1",
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useMemo } = React;
+
+      const AGENTS_DATA = [
+        { id: 1, name: "Brimstone", role: "Controller" },
+        { id: 2, name: "Viper", role: "Controller" },
+        { id: 3, name: "Omen", role: "Controller" },
+        { id: 4, name: "Killjoy", role: "Sentinel" },
+        { id: 5, name: "Cypher", role: "Sentinel" },
+        { id: 6, name: "Sova", role: "Initiator" },
+        { id: 7, name: "Sage", role: "Sentinel" },
+        { id: 8, name: "Phoenix", role: "Duelist" },
+        { id: 9, name: "Jett", role: "Duelist" },
+        { id: 10, name: "Reyna", role: "Duelist" },
+        { id: 11, name: "Raze", role: "Duelist" },
+        { id: 12, name: "Breach", role: "Initiator" },
+        { id: 13, name: "Skye", role: "Initiator" },
+        { id: 14, name: "Yoru", role: "Duelist" },
+        { id: 15, name: "Astra", role: "Controller" },
+        { id: 16, name: "KAY/O", role: "Initiator" },
+        { id: 17, name: "Chamber", role: "Sentinel" },
+        { id: 18, name: "Neon", role: "Duelist" },
+        { id: 19, name: "Fade", role: "Initiator" },
+        { id: 20, name: "Harbor", role: "Controller" },
+        { id: 21, name: "Gekko", role: "Initiator" },
+        { id: 22, name: "Deadlock", role: "Sentinel" },
+        { id: 23, name: "Iso", role: "Duelist" },
+        { id: 24, name: "Clove", role: "Controller" },
+        { id: 25, name: "Vyse", role: "Sentinel" },
+        { id: 26, name: "Tejo", role: "Initiator" },
+        { id: 27, name: "Veto", role: "Sentinel" },
+      ].sort((a, b) => a.name.localeCompare(b.name));
+
+      const MAPS_DATA = {
+        "Ascent": ["Jett", "Omen", "Killjoy", "Sova", "KAY/O", "Cypher"],
+        "Bind": ["Raze", "Viper", "Brimstone", "Skye", "Gekko", "Cypher", "Yoru"],
+        "Haven": ["Jett", "Omen", "Breach", "Sova", "Killjoy", "Cypher", "Neon"],
+        "Split": ["Raze", "Omen", "Viper", "Skye", "Cypher", "Breach"],
+        "Icebox": ["Jett", "Viper", "Killjoy", "Sova", "Sage", "KAY/O"],
+        "Breeze": ["Jett", "Viper", "Sova", "Cypher", "KAY/O", "Chamber"],
+        "Lotus": ["Raze", "Omen", "Killjoy", "Fade", "Viper", "Skye"],
+        "Sunset": ["Raze", "Omen", "Cypher", "Fade", "Breach", "Gekko"],
+        "Abyss": ["Jett", "Omen", "Viper", "Sova", "KAY/O", "Cypher"]
+      };
+
+      const RoleIcon = ({ role, size = "w-4 h-4" }) => {
+        const icons = {
+          Duelist: (
+            <svg className={size} fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2z" />
+            </svg>
+          ),
+          Controller: (
+            <svg className={size} fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 22a10 10 0 110-20 10 10 0 010 20zm-1-11v5h2v-5h3l-4-4-4 4h3z" />
+            </svg>
+          ),
+          Initiator: (
+            <svg className={size} fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14l-6-6z" />
+            </svg>
+          ),
+          Sentinel: (
+            <svg className={size} fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
+            </svg>
+          ),
+        };
+        return icons[role] || null;
+      }; function MapSelector({ selectedMap, onMapChange }) {
+        return (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold uppercase tracking-widest border-l-4 border-vred pl-3 mb-4">Select Map</h2>
+            <div className="flex flex-wrap gap-2">
+              {Object.keys(MAPS_DATA).map(map => (
+                <button
+                  key={map}
+                  onClick={() => onMapChange(map)}
+                  className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-widest border transition-all ${
+                    selectedMap === map ? 'bg-vred border-vred text-vwhite shadow-[0_0_10px_rgba(255,70,85,0.5)]' : 'bg-vgrey border-vwhite/10 text-vwhite/40 hover:border-vwhite/30'
+                  }`}
+                >
+                  {map}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      const App = () => {
+        const [selectedTeam, setSelectedTeam] = useState([]);
+        const [selectedMap, setSelectedMap] = useState("Ascent");
+
+        const handleSelectAgent = (agent) => {
+          if (
+            selectedTeam.length < 5 &&
+            !selectedTeam.find((a) => a.id === agent.id)
+          ) {
+            setSelectedTeam([...selectedTeam, agent]);
+          }
+        };
+
+        const handleRemoveAgent = (id) => {
+          setSelectedTeam(selectedTeam.filter((a) => a.id !== id));
+        };
+
+        const handleReset = () => setSelectedTeam([]);
+
+        const roleCounts = useMemo(() => {
+          const counts = {
+            Duelist: 0,
+            Controller: 0,
+            Initiator: 0,
+            Sentinel: 0,
+          };
+          selectedTeam.forEach((a) => counts[a.role]++);
+          return counts;
+        }, [selectedTeam]);
+
+        const analysis = useMemo(() => {
+          if (selectedTeam.length < 5)
+            return {
+              message: "Pilih 5 agent untuk melihat analisa tim.",
+              type: "neutral",
+            };
+
+          let warnings = [];
+          
+          // Map specific meta check
+          const recommended = MAPS_DATA[selectedMap] || [];
+          const offMetaCount = selectedTeam.filter(a => !recommended.includes(a.name)).length;
+          
+          if (offMetaCount >= 3) {
+            warnings.push(`Tim ini kurang sesuai dengan meta di map ${selectedMap}. Coba pilih agent unggulan map ini.`);
+          }
+
+          if (roleCounts.Controller === 0)
+            warnings.push("Tim butuh Controller untuk memblock vision musuh.");
+          if (roleCounts.Initiator === 0)
+            warnings.push("Tim butuh Initiator untuk scouting atau flash.");
+          if (roleCounts.Duelist > 2)
+            warnings.push(
+              "Terlalu banyak Duelist bisa membuat tim kurang utility defense.",
+            );
+          if (roleCounts.Duelist === 0)
+            warnings.push("Kurang Duelist bisa menyulitkan saat entry site.");
+
+          if (warnings.length === 0)
+            return {
+              message: `Balanced Team! Sesuai meta Map ${selectedMap}.`,
+              type: "success",
+            };
+          return { message: warnings[0], type: "warning" };
+        }, [selectedTeam, roleCounts, selectedMap]);
+
+        return (
+          <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
+            {/* Header */}
+            <header className="mb-12 text-center">
+              <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase mb-2">
+                VALORANT <span className="valorant-red">AGENT PICKER</span>
+              </h1>
+              <p className="text-vwhite/60 font-medium">
+                Team Composition Helper
+              </p>
+            </header>
+
+            {/* Map Selection */}
+            <MapSelector selectedMap={selectedMap} onMapChange={setSelectedMap} />
+
+            {/* Team Slots */}
+            <section className="mb-12">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold uppercase tracking-widest border-l-4 border-vred pl-3">
+                  Your Team
+                </h2>
+                <button
+                  onClick={handleReset}
+                  className="text-xs uppercase tracking-widest text-vwhite/50 hover:text-vred transition-colors"
+                >
+                  Reset Team
+                </button>
+              </div>
+              <div className="grid grid-cols-5 gap-2 md:gap-4 h-24 md:h-32 mb-8">
+                {[0, 1, 2, 3, 4].map((idx) => {
+                  const agent = selectedTeam[idx];
+                  return (
+                    <div
+                      key={idx}
+                      className={`glass-panel rounded border-2 relative overflow-hidden flex flex-col items-center justify-center transition-all ${agent ? "border-vred/50" : "border-vwhite/10 border-dashed"}`}
+                    >
+                      {agent ? (
+                        <>
+                          <button
+                            onClick={() => handleRemoveAgent(agent.id)}
+                            className="absolute top-1 right-1 text-vwhite/40 hover:text-vred z-10"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />
+                            </svg>
+                          </button>
+                          <div className="valorant-red mb-1">
+                            <RoleIcon
+                              role={agent.role}
+                              size="w-5 h-5 md:w-8 md:h-8"
+                            />
+                          </div>
+                          <span className="text-[10px] md:text-sm font-bold uppercase truncate px-1">
+                            {agent.name}
+                          </span>
+                        </>
+                      ) : (
+                        <div className="text-vwhite/10 uppercase font-black text-2xl md:text-4xl">
+                          {idx + 1}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Analysis Card */}
+              <div
+                className={`p-4 md:p-6 rounded border-l-8 transition-all ${
+                  analysis.type === "success"
+                    ? "bg-green-500/10 border-green-500 text-green-400"
+                    : analysis.type === "warning"
+                      ? "bg-vred/10 border-vred text-vred"
+                      : "bg-vwhite/5 border-vwhite/20 text-vwhite/60"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  {analysis.type === "success" && (
+                    <svg
+                      className="w-6 h-6"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                    </svg>
+                  )}
+                  {analysis.type === "warning" && (
+                    <svg
+                      className="w-6 h-6"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+                    </svg>
+                  )}
+                  <div>
+                    <p className="font-bold uppercase text-xs tracking-widest opacity-70 mb-1">
+                      Composition Insight - Map: {selectedMap}
+                    </p>
+                    <p className="text-lg md:text-xl font-black italic uppercase tracking-tight">
+                      {analysis.message}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Role Progress */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                {Object.entries(roleCounts).map(([role, count]) => (
+                  <div key={role} className="space-y-1">
+                    <div className="flex justify-between text-[10px] uppercase font-bold tracking-widest text-vwhite/40">
+                      <span>{role}</span>
+                      <span>{count}</span>
+                    </div>
+                    <div className="h-1 bg-vwhite/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-vred transition-all duration-500 shadow-[0_0_8px_rgba(255,70,85,0.5)]"
+                        style={{ width: `${(count / 5) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Agent Grid */}
+            <section>
+              <div className="flex justify-between items-baseline mb-6">
+                <h2 className="text-xl font-bold uppercase tracking-widest border-l-4 border-vred pl-3">
+                  Select Agents
+                </h2>
+                <div className="flex items-center gap-2">
+                   <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                   <span className="text-[10px] uppercase font-bold text-vwhite/40 tracking-widest">Recommended for {selectedMap}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3 md:gap-4">
+                {AGENTS_DATA.map((agent) => {
+                  const isSelected = selectedTeam.find(
+                    (a) => a.id === agent.id,
+                  );
+                  const isRecommended = MAPS_DATA[selectedMap]?.includes(agent.name);
+
+                  return (
+                    <button
+                      key={agent.id}
+                      disabled={isSelected || selectedTeam.length >= 5}
+                      onClick={() => handleSelectAgent(agent)}
+                      className={`group relative glass-panel p-4 rounded border transition-all text-left agent-card-glow animate-fade-in ${
+                        isSelected
+                          ? "opacity-30 grayscale cursor-not-allowed border-vred/40"
+                          : selectedTeam.length >= 5
+                            ? "opacity-50 cursor-not-allowed border-vwhite/10"
+                            : isRecommended 
+                                ? "border-green-500/50 cursor-pointer shadow-[inset_0_0_5px_rgba(74,222,128,0.1)]" 
+                                : "border-vwhite/10 cursor-pointer"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div className={`transition-colors ${isRecommended ? 'text-green-400' : 'text-vwhite/20 group-hover:text-vred'}`}>
+                          <RoleIcon role={agent.role} size="w-6 h-6" />
+                        </div>
+                        {isRecommended && (
+                          <div className="text-[8px] font-black uppercase text-green-400 border border-green-500/30 px-1 rounded">Best for Map</div>
+                        )}
+                        <div className="text-[10px] font-black uppercase opacity-20 group-hover:opacity-40">
+                          {agent.role.slice(0, 3)}
+                        </div>
+                      </div>
+                      <div className="mt-8">
+                        <p className="text-xs uppercase font-bold tracking-widest text-vwhite/40 mb-1">
+                          {agent.role}
+                        </p>
+                        <p className={`text-xl md:text-2xl font-black italic uppercase tracking-tighter transition-colors ${isSelected ? '' : isRecommended ? 'text-vwhite group-hover:text-green-400' : 'group-hover:text-vred'}`}>
+                          {agent.name}
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-vdark/40">
+                          <div className="bg-vred text-vwhite text-[10px] font-bold px-2 py-1 uppercase rounded">
+                            In Team
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Footer */}
+            <footer className="mt-20 pt-8 border-t border-vwhite/5 text-center text-vwhite/20 text-[10px] uppercase tracking-widest">
+              Valorant Agent Picker &copy; 2026 • Not affiliated with Riot Games
+            </footer>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
